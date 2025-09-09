@@ -1,0 +1,15 @@
+name = "bark-push-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-15"
+
+[vars]
+BARK_URL = "https://your-bark-server.com"
+BARK_KEY = "your-bark-key-here"
+
+[[kv_namespaces]]
+binding = "TASKS_KV"
+id = "your-kv-namespace-id"
+preview_id = "your-preview-kv-namespace-id"
+
+[triggers]
+crons = ["* * * * *"]
