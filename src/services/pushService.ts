@@ -35,30 +35,30 @@ export class PushService {
           group: task.group,
         };
       }
+      
 
-      // Use service binding in production, direct API call in development
+      // Use service binding to call bark service
       let response: Response;
       
-      response = await fetch(`${this.env.BARK_URL}/push`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'User-Agent': 'Bark-Push-Worker/1.0',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
+      console.log('使用service binding调用Bark服务1...');
+      response = await this.env.barkService.fetch(
+        new Request('https://bark-worker-eep/push', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestBody),
+        })
+      );
+
+      console.log('响应状态:', response.status, response.statusText);
 
       if (!response.ok) {
-        console.error(`Push failed with status: ${response.status}`, await response.text());
         return false;
       }
 
-      const result = await response.json();
-      console.log('Push sent successfully:', result);
       return true;
     } catch (error) {
-      console.error('Error sending push:', error);
       return false;
     }
   }
@@ -66,7 +66,7 @@ export class PushService {
   async testPush(): Promise<boolean> {
     const testTask: PushTask = {
       id: 'test',
-      title: 'Test Push',
+      title: 'Test Push 2',
       body: 'This is a test notification from bark-push-worker',
       scheduledTime: Date.now(),
       status: 'pending',
