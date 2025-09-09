@@ -1,7 +1,7 @@
-import { PushTask, CreateTaskRequest, UpdateTaskRequest, Env } from '../types';
+import { PushTask, CreateTaskRequest, UpdateTaskRequest, Bindings } from '../types';
 
 export class TaskService {
-  constructor(private env: Env) {}
+  constructor(private env: Bindings) {}
 
   async createTask(request: CreateTaskRequest): Promise<PushTask> {
     const task: PushTask = {

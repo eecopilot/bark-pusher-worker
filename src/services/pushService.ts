@@ -1,12 +1,10 @@
-import { BarkSinglePushRequest, BarkMultiPushRequest, PushTask, Env } from '../types';
+import { BarkSinglePushRequest, BarkMultiPushRequest, PushTask, Bindings } from '../types';
 
 export class PushService {
-  constructor(private env: Env) {}
+  constructor(private env: Bindings) {}
 
   async sendPush(task: PushTask): Promise<boolean> {
     try {
-      const pushUrl = `${this.env.BARK_URL}/push`;
-      
       let requestBody: BarkSinglePushRequest | BarkMultiPushRequest;
       
       if (task.deviceKeys && task.deviceKeys.length > 0) {
@@ -38,10 +36,13 @@ export class PushService {
         };
       }
 
-      const response = await fetch(pushUrl, {
+      // Use service binding to call bark service
+      const response = await this.env.barkService.fetch('https://bark-push-worker', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
+          'User-Agent': 'Bark-Push-Worker/1.0',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(requestBody),
       });

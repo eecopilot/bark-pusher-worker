@@ -1,8 +1,8 @@
 import { TaskService } from '../services/taskService';
 import { PushService } from '../services/pushService';
-import { Env } from '../types';
+import { Bindings } from '../types';
 
-export async function handleScheduled(env: Env): Promise<void> {
+export async function handleScheduled(env: Bindings): Promise<void> {
   console.log('Running scheduled task handler...');
   
   const taskService = new TaskService(env);

@@ -1,156 +1,4 @@
-import { TaskService } from '../services/taskService';
-import { PushService } from '../services/pushService';
-import { CreateTaskRequest, UpdateTaskRequest, Bindings } from '../types';
-
-export class APIHandler {
-  private taskService: TaskService;
-  private pushService: PushService;
-
-  constructor(private env: Bindings) {
-    this.taskService = new TaskService(env);
-    this.pushService = new PushService(env);
-  }
-
-  async handleRequest(request: Request): Promise<Response> {
-    const url = new URL(request.url);
-    const method = request.method;
-    const path = url.pathname;
-
-    // CORS headers
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    };
-
-    if (method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
-    }
-
-    try {
-      // 静态文件服务
-      if (path === '/' && method === 'GET') {
-        return await this.handleStaticFile('index.html');
-      }
-
-      if (path === '/api/test' && method === 'POST') {
-        return await this.handleTestPush();
-      }
-
-      if (path === '/api/tasks' && method === 'GET') {
-        return await this.handleGetTasks();
-      }
-
-      if (path === '/api/tasks' && method === 'POST') {
-        return await this.handleCreateTask(request);
-      }
-
-      if (path.startsWith('/api/tasks/') && method === 'GET') {
-        const id = path.split('/')[3];
-        return await this.handleGetTask(id);
-      }
-
-      if (path.startsWith('/api/tasks/') && method === 'PUT') {
-        const id = path.split('/')[3];
-        return await this.handleUpdateTask(id, request);
-      }
-
-      if (path.startsWith('/api/tasks/') && method === 'DELETE') {
-        const id = path.split('/')[3];
-        return await this.handleDeleteTask(id);
-      }
-
-      return new Response('Not Found', { 
-        status: 404, 
-        headers: corsHeaders 
-      });
-    } catch (error) {
-      console.error('API Error:', error);
-      return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-  }
-
-  private async handleTestPush(): Promise<Response> {
-    const success = await this.pushService.testPush();
-    return new Response(JSON.stringify({ success }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  private async handleGetTasks(): Promise<Response> {
-    const tasks = await this.taskService.getAllTasks();
-    return new Response(JSON.stringify(tasks), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  private async handleCreateTask(request: Request): Promise<Response> {
-    const body: CreateTaskRequest = await request.json();
-    
-    // Validate required fields
-    if (!body.title || !body.body || !body.scheduledTime) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    const task = await this.taskService.createTask(body);
-    return new Response(JSON.stringify(task), {
-      status: 201,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  private async handleGetTask(id: string): Promise<Response> {
-    const task = await this.taskService.getTask(id);
-    if (!task) {
-      return new Response(JSON.stringify({ error: 'Task not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    return new Response(JSON.stringify(task), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  private async handleUpdateTask(id: string, request: Request): Promise<Response> {
-    const body: UpdateTaskRequest = await request.json();
-    const task = await this.taskService.updateTask(id, body);
-    
-    if (!task) {
-      return new Response(JSON.stringify({ error: 'Task not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    return new Response(JSON.stringify(task), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  private async handleDeleteTask(id: string): Promise<Response> {
-    const success = await this.taskService.deleteTask(id);
-    if (!success) {
-      return new Response(JSON.stringify({ error: 'Task not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  private async handleStaticFile(filename: string): Promise<Response> {
-    // 简单的内嵌HTML，实际项目中可以使用KV存储或其他方式
-    const html = `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -515,40 +363,50 @@ export class APIHandler {
         // 加载任务列表
         async function loadTasks() {
             try {
-                const response = await fetch(API_BASE + '/tasks');
+                const response = await fetch(`${API_BASE}/tasks`);
                 const tasks = await response.json();
                 
                 const container = document.getElementById('tasksContainer');
                 
                 if (!tasks || tasks.length === 0) {
-                    container.innerHTML = '<div class="empty-state"><h3>暂无任务</h3><p>创建你的第一个推送任务吧</p></div>';
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <h3>暂无任务</h3>
+                            <p>创建你的第一个推送任务吧</p>
+                        </div>
+                    `;
                     return;
                 }
                 
-                container.innerHTML = tasks.map(task => 
-                    '<div class="task-card">' +
-                    '<div class="task-header">' +
-                    '<div>' +
-                    '<div class="task-title">' + escapeHtml(task.title) + '</div>' +
-                    '<div class="task-body">' + escapeHtml(task.body) + '</div>' +
-                    '</div>' +
-                    '<div class="task-actions">' +
-                    '<button class="btn btn-small btn-danger" onclick="deleteTask(\\'' + task.id + '\\')">删除</button>' +
-                    '</div>' +
-                    '</div>' +
-                    '<div class="task-meta">' +
-                    '<span class="task-status status-' + task.status + '">' + getStatusText(task.status) + '</span>' +
-                    '<span>计划时间: ' + formatDateTime(task.scheduledTime) + '</span>' +
-                    '<span>创建时间: ' + formatDateTime(task.createdAt) + '</span>' +
-                    (task.sound ? '<span>提示音: ' + task.sound + '</span>' : '') +
-                    (task.group ? '<span>分组: ' + task.group + '</span>' : '') +
-                    '</div>' +
-                    '</div>'
-                ).join('');
+                container.innerHTML = tasks.map(task => `
+                    <div class="task-card">
+                        <div class="task-header">
+                            <div>
+                                <div class="task-title">${escapeHtml(task.title)}</div>
+                                <div class="task-body">${escapeHtml(task.body)}</div>
+                            </div>
+                            <div class="task-actions">
+                                <button class="btn btn-small btn-danger" onclick="deleteTask('${task.id}')">删除</button>
+                            </div>
+                        </div>
+                        <div class="task-meta">
+                            <span class="task-status status-${task.status}">${getStatusText(task.status)}</span>
+                            <span>计划时间: ${formatDateTime(task.scheduledTime)}</span>
+                            <span>创建时间: ${formatDateTime(task.createdAt)}</span>
+                            ${task.sound ? `<span>提示音: ${task.sound}</span>` : ''}
+                            ${task.group ? `<span>分组: ${task.group}</span>` : ''}
+                        </div>
+                    </div>
+                `).join('');
                 
             } catch (error) {
                 console.error('加载任务失败:', error);
-                document.getElementById('tasksContainer').innerHTML = '<div class="empty-state"><h3>加载失败</h3><p>请检查网络连接或稍后重试</p></div>';
+                document.getElementById('tasksContainer').innerHTML = `
+                    <div class="empty-state">
+                        <h3>加载失败</h3>
+                        <p>请检查网络连接或稍后重试</p>
+                    </div>
+                `;
             }
         }
 
@@ -567,7 +425,7 @@ export class APIHandler {
             };
             
             try {
-                const response = await fetch(API_BASE + '/tasks', {
+                const response = await fetch(`${API_BASE}/tasks`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -606,7 +464,7 @@ export class APIHandler {
             }
             
             try {
-                const response = await fetch(API_BASE + '/tasks/' + taskId, {
+                const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
                     method: 'DELETE'
                 });
                 
@@ -626,7 +484,7 @@ export class APIHandler {
         // 发送测试推送
         async function sendTestPush() {
             try {
-                const response = await fetch(API_BASE + '/test', {
+                const response = await fetch(`${API_BASE}/test`, {
                     method: 'POST'
                 });
                 
@@ -665,10 +523,4 @@ export class APIHandler {
         }
     </script>
 </body>
-</html>`;
-
-    return new Response(html, {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    });
-  }
-}
+</html>

@@ -52,4 +52,7 @@ export interface Env {
   TASKS_KV: KVNamespace;
   BARK_URL: string;
   BARK_KEY: string;
+  barkService: Fetcher;
 }
+
+export interface Bindings extends Env {}
