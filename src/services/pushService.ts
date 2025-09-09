@@ -36,8 +36,10 @@ export class PushService {
         };
       }
 
-      // Use service binding to call bark service
-      const response = await this.env.barkService.fetch('https://bark-push-worker', {
+      // Use service binding in production, direct API call in development
+      let response: Response;
+      
+      response = await fetch(`${this.env.BARK_URL}/push`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json; charset=utf-8',

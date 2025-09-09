@@ -37,6 +37,10 @@ export class APIHandler {
         return await this.handleTestPush();
       }
 
+      if (path === '/api/trigger-pending' && method === 'POST') {
+        return await this.handleTriggerPendingTasks();
+      }
+
       if (path === '/api/tasks' && method === 'GET') {
         return await this.handleGetTasks();
       }
@@ -78,6 +82,40 @@ export class APIHandler {
     return new Response(JSON.stringify({ success }), {
       headers: { 'Content-Type': 'application/json' },
     });
+  }
+
+  private async handleTriggerPendingTasks(): Promise<Response> {
+    try {
+      const tasks = await this.taskService.getAllTasks();
+      const pendingTasks = tasks.filter(task => task.status === 'pending');
+      
+      const results = [];
+      for (const task of pendingTasks) {
+        const success = await this.pushService.sendPush(task);
+        if (success) {
+          await this.taskService.updateTask(task.id, { status: 'sent' });
+          results.push({ id: task.id, title: task.title, success: true });
+        } else {
+          await this.taskService.updateTask(task.id, { status: 'failed' });
+          results.push({ id: task.id, title: task.title, success: false });
+        }
+      }
+      
+      return new Response(JSON.stringify({ 
+        message: `Processed ${pendingTasks.length} pending tasks`,
+        results 
+      }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      return new Response(JSON.stringify({ 
+        error: 'Failed to trigger pending tasks',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
   }
 
   private async handleGetTasks(): Promise<Response> {
