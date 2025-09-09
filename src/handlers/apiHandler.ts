@@ -11,6 +11,28 @@ export class APIHandler {
     this.pushService = new PushService(env);
   }
 
+  private checkBasicAuth(request: Request): { success: boolean; message: string } {
+    const authHeader = request.headers.get('Authorization');
+    
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
+      return { success: false, message: 'Unauthorized: Missing or invalid Authorization header' };
+    }
+
+    try {
+      const base64Credentials = authHeader.substring(6);
+      const credentials = atob(base64Credentials);
+      const [username, password] = credentials.split(':');
+
+      if (username === 'eep' && password === '123123aaa') {
+        return { success: true, message: 'OK' };
+      } else {
+        return { success: false, message: 'Unauthorized: Invalid credentials' };
+      }
+    } catch (error) {
+      return { success: false, message: 'Unauthorized: Invalid credentials format' };
+    }
+  }
+
   async handleRequest(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const method = request.method;
@@ -20,11 +42,25 @@ export class APIHandler {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
 
     if (method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
+    }
+
+    // Basic Authentication check for API endpoints
+    if (path.startsWith('/api/')) {
+      const authResult = this.checkBasicAuth(request);
+      if (!authResult.success) {
+        return new Response(authResult.message, {
+          status: 401,
+          headers: {
+            ...corsHeaders,
+            'WWW-Authenticate': 'Basic realm="Bark Push Worker"'
+          }
+        });
+      }
     }
 
     try {
