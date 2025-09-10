@@ -40,7 +40,6 @@ export class PushService {
       // Use service binding to call bark service
       let response: Response;
       
-      console.log('使用service binding调用Bark服务1...');
       response = await this.env.barkService.fetch(
         new Request('https://bark-worker-eep/push', {
           method: 'POST',

@@ -46,6 +46,7 @@ export interface UpdateTaskRequest {
   scheduledTime?: number;
   sound?: string;
   group?: string;
+  status?: 'pending' | 'sent' | 'failed';
 }
 
 export interface Env {
